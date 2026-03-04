@@ -17,7 +17,7 @@ RUN mix local.hex --force && \
 
 ENV MIX_ENV="prod"
 
-COPY mix.exs mix.lock ./
+COPY mix.exs ./
 RUN mix deps.get --only $MIX_ENV
 RUN mkdir config
 
