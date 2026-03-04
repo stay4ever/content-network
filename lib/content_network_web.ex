@@ -66,6 +66,7 @@ defmodule ContentNetworkWeb do
     quote do
       import Phoenix.HTML
       import Phoenix.LiveView.Helpers
+      import ContentNetworkWeb.CoreComponents
 
       unquote(verified_routes())
     end
