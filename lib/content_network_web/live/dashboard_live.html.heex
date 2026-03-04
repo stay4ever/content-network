@@ -1,0 +1,291 @@
+<div class="fade-in">
+  <!-- === REVENUE TARGET === -->
+  <div class="card" style="margin-bottom: 24px; border-color: var(--border-light);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <div>
+        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Monthly Revenue Target</div>
+        <div style="display: flex; align-items: baseline; gap: 12px; margin-top: 4px;">
+          <span class="metric-value amber">$<%= format_cents(@metrics.total_monthly_revenue_cents) %></span>
+          <span style="font-size: 14px; color: var(--text-muted);">/ $14,000</span>
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 24px; font-weight: 700; color: var(--green);"><%= @progress_pct %>%</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Progress</div>
+      </div>
+    </div>
+    <div class="progress-bar" style="height: 8px;">
+      <div class="fill amber" style={"width: #{@progress_pct}%;"}></div>
+    </div>
+  </div>
+
+  <!-- === KPI GRID === -->
+  <div class="grid-4" style="margin-bottom: 24px;">
+    <div class="card">
+      <div class="card-title">Total Sites</div>
+      <div class="metric-value green"><%= @metrics.total_sites %></div>
+      <div class="metric-label">Active niche sites</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Articles Published</div>
+      <div class="metric-value"><%= format_number(@metrics.total_articles) %></div>
+      <div class="metric-label">SEO-optimized content</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Monthly Pageviews</div>
+      <div class="metric-value green"><%= format_number(@metrics.total_monthly_pageviews) %></div>
+      <div class="metric-label">Across all sites</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Email Subscribers</div>
+      <div class="metric-value"><%= format_number(@metrics.total_email_subscribers) %></div>
+      <div class="metric-label">Total list size</div>
+    </div>
+  </div>
+
+  <!-- === MAIN CONTENT: REVENUE + FEED === -->
+  <div class="grid-3" style="margin-bottom: 24px;">
+    <!-- Revenue Breakdown -->
+    <div class="card span-2">
+      <div class="card-header">
+        <span class="card-title">Revenue Breakdown (30d)</span>
+        <span style="font-size: 12px; color: var(--text-muted);">
+          Total: $<%= format_cents(Enum.sum(Map.values(@revenue_breakdown))) %>
+        </span>
+      </div>
+      <div class="chart-bar-container">
+        <%= for {type, amount} <- @revenue_breakdown do %>
+          <div class="chart-bar-row">
+            <div class="chart-bar-label"><%= revenue_type_label(type) %></div>
+            <div class="chart-bar-track">
+              <div
+                class="chart-bar-fill"
+                style={"width: #{max(revenue_bar_pct(amount, max_revenue(@revenue_breakdown)), 2)}%; #{revenue_type_color(type)}"}
+              >
+                <span class="chart-bar-value">$<%= format_cents(amount) %></span>
+              </div>
+            </div>
+          </div>
+        <% end %>
+        <%= if @revenue_breakdown == %{} do %>
+          <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px;">
+            No revenue data yet. Content engine is generating articles.
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Activity Feed -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Live Feed</span>
+        <div style="display: flex; gap: 6px;">
+          <button
+            phx-click="trigger_schedule"
+            style="background: var(--green-glow); color: var(--green); border: 1px solid rgba(0,255,136,0.3); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-weight: 500;"
+          >
+            Run Schedule
+          </button>
+          <button
+            phx-click="trigger_analytics"
+            style="background: var(--amber-glow); color: var(--amber); border: 1px solid rgba(255,170,0,0.3); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-weight: 500;"
+          >
+            Analytics
+          </button>
+        </div>
+      </div>
+      <div style="max-height: 300px; overflow-y: auto;">
+        <%= if @feed == [] do %>
+          <div style="text-align: center; padding: 32px 16px; color: var(--text-muted); font-size: 13px;">
+            Waiting for activity...
+          </div>
+        <% else %>
+          <%= for item <- @feed do %>
+            <div class="feed-item">
+              <div class="feed-dot" style={feed_dot_color(item.type)}></div>
+              <div class="feed-content">
+                <div class="feed-title"><%= item.message %></div>
+                <div class="feed-meta"><%= item.detail %> &middot; <%= time_ago(item.time) %></div>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- === SITE GRID === -->
+  <div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+      <span class="card-title">Content Sites</span>
+      <span style="font-size: 12px; color: var(--text-muted);"><%= @metrics.total_sites %> sites &middot; <%= @metrics.mediavine_sites %> Mediavine approved</span>
+    </div>
+
+    <%= if @sites == [] do %>
+      <div style="text-align: center; padding: 48px 16px; color: var(--text-muted);">
+        <div style="font-size: 32px; margin-bottom: 12px;">&#9881;</div>
+        <div style="font-size: 14px; margin-bottom: 4px;">No sites yet</div>
+        <div style="font-size: 12px;">The orchestrator will begin creating sites on the next schedule run.</div>
+      </div>
+    <% else %>
+      <div class="grid-3">
+        <%= for site <- @sites do %>
+          <div class="card site-card" style="cursor: pointer;" phx-click="navigate" phx-value-to={"/sites/#{site.id}"}>
+            <div class="site-header">
+              <div>
+                <div class="site-name"><%= site.name %></div>
+                <div class="site-domain"><%= site.domain %></div>
+              </div>
+              <span class={status_badge_class(site.status)}><%= site.status %></span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;"><%= site.niche %></div>
+            <div class="site-stats">
+              <div class="stat-item">
+                <div class="stat-value" style="color: var(--amber);"><%= format_number(site.monthly_revenue_cents) %></div>
+                <div class="stat-label">Revenue (cents)</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value" style="color: var(--green);"><%= format_number(site.monthly_pageviews) %></div>
+                <div class="stat-label">Pageviews</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value"><%= site.article_count %></div>
+                <div class="stat-label">Articles</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value"><%= format_number(site.email_subscribers) %></div>
+                <div class="stat-label">Subscribers</div>
+              </div>
+            </div>
+            <div style="margin-top: 10px;">
+              <div class="progress-bar">
+                <div
+                  class="fill green"
+                  style={"width: #{min(site.article_count / 1, 100)}%;"}
+                ></div>
+              </div>
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">
+                DA: <%= site.domain_authority %> &middot;
+                <%= length(site.affiliate_programs) %> programs
+                <%= if site.mediavine_approved do %>
+                  &middot; <span style="color: var(--green);">Mediavine</span>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- === CONTENT PIPELINE + TOP ARTICLES === -->
+  <div class="grid-2" style="margin-bottom: 24px;">
+    <!-- Recent Articles -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Recent Publications</span>
+      </div>
+      <%= if @recent_articles == [] do %>
+        <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px;">
+          No articles published yet.
+        </div>
+      <% else %>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Article</th>
+              <th>SEO</th>
+              <th>Views</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%= for article <- @recent_articles do %>
+              <tr>
+                <td>
+                  <div style="font-weight: 500; font-size: 13px;"><%= String.slice(article.title || "", 0, 45) %></div>
+                  <div style="font-size: 11px; color: var(--text-muted);">
+                    <%= if Ecto.assoc_loaded?(article.site), do: article.site.domain, else: "" %>
+                  </div>
+                </td>
+                <td>
+                  <span style={"color: #{if (article.seo_score || 0) >= 70, do: "var(--green)", else: "var(--amber)"};"}>
+                    <%= article.seo_score || 0 %>
+                  </span>
+                </td>
+                <td style="font-variant-numeric: tabular-nums;"><%= format_number(article.pageviews) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+    </div>
+
+    <!-- Top Earning Articles -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Top Earners</span>
+      </div>
+      <%= if @top_articles == [] do %>
+        <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px;">
+          No revenue data yet.
+        </div>
+      <% else %>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Article</th>
+              <th>Revenue</th>
+              <th>Clicks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%= for article <- @top_articles do %>
+              <tr>
+                <td>
+                  <div style="font-weight: 500; font-size: 13px;"><%= String.slice(article.title || "", 0, 40) %></div>
+                  <div style="font-size: 11px; color: var(--text-muted);">
+                    <%= if Ecto.assoc_loaded?(article.site), do: article.site.domain, else: "" %>
+                  </div>
+                </td>
+                <td style="color: var(--amber); font-weight: 600;">$<%= format_cents(article.affiliate_revenue_cents) %></td>
+                <td style="font-variant-numeric: tabular-nums;"><%= format_number(article.affiliate_clicks) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- === ENGINE STATUS === -->
+  <div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+      <span class="card-title">Engine Status</span>
+      <span class={status_badge_class(:growing)}>OPERATIONAL</span>
+    </div>
+    <div class="grid-4">
+      <div>
+        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Last Schedule</div>
+        <div style="font-size: 14px; margin-top: 4px;">
+          <%= if @orchestrator.last_schedule_run do %>
+            <%= time_ago(@orchestrator.last_schedule_run) %>
+          <% else %>
+            Pending
+          <% end %>
+        </div>
+      </div>
+      <div>
+        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Articles Today</div>
+        <div style="font-size: 14px; margin-top: 4px; color: var(--green);"><%= @orchestrator.daily_articles_scheduled %></div>
+      </div>
+      <div>
+        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Active Sites</div>
+        <div style="font-size: 14px; margin-top: 4px;"><%= length(@orchestrator.active_sites) %></div>
+      </div>
+      <div>
+        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Avg DA</div>
+        <div style="font-size: 14px; margin-top: 4px;"><%= @metrics.avg_domain_authority %></div>
+      </div>
+    </div>
+  </div>
+</div>
